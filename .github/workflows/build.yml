@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build app
+        run: |
+          xcodebuild \
+            -project occuporto.xcodeproj \
+            -target occuporto \
+            -configuration Release \
+            SYMROOT="$RUNNER_TEMP/build" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package app
+        run: ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/build/Release/occuporto.app" "$RUNNER_TEMP/occuporto.zip"
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: occuporto
+          path: ${{ runner.temp }}/occuporto.zip
+          if-no-files-found: error
