@@ -28,7 +28,9 @@ jobs:
             build
 
       - name: Package app
-        run: ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/build/Release/occuporto.app" "$RUNNER_TEMP/occuporto.zip"
+        run: |
+          codesign --force --deep --sign - "$RUNNER_TEMP/build/Release/occuporto.app"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/build/Release/occuporto.app" "$RUNNER_TEMP/occuporto.zip"
 
       - name: Upload app
         uses: actions/upload-artifact@v4
@@ -36,3 +38,22 @@ jobs:
           name: occuporto
           path: ${{ runner.temp }}/occuporto.zip
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download app
+        uses: actions/download-artifact@v5
+        with:
+          name: occuporto
+          path: release
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "release/occuporto.zip" --generate-notes --title "Occuporto $GITHUB_REF_NAME"
